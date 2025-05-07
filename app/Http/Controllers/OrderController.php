@@ -122,6 +122,24 @@ class OrderController extends Controller
     }
 
     // 💳 Mark an order as paid
+    // public function pay(Request $request, Order $order)
+    // {
+    //     $request->validate([
+    //         'payment_method' => 'required|in:cash,aba,bakong'
+    //     ]);
+
+    //     if ($order->status !== 'pending') {
+    //         return response()->json(['message' => 'Only pending orders can be paid.'], 400);
+    //     }
+
+    //     $order->update([
+    //         'payment_method' => $request->payment_method,
+    //         'status' => 'completed',
+    //         'paid_at' => now(),
+    //     ]);
+
+    //     return response()->json(['message' => 'Order marked as paid.']);
+    // }
     public function pay(Request $request, Order $order)
     {
         $request->validate([
@@ -138,7 +156,15 @@ class OrderController extends Controller
             'paid_at' => now(),
         ]);
 
-        return response()->json(['message' => 'Order marked as paid.']);
+        // ✅ Add loyalty points if the user is a Customer
+        $user = $order->user;
+
+        if ($user && $user->role && $user->role->name === 'Customer') {
+            $earnedPoints = floor($order->total_amount); // 1 point per $1
+            $user->increment('points', $earnedPoints);
+        }
+
+        return response()->json(['message' => 'Order marked as paid and points awarded.']);
     }
 
     // ❌ Cancel an order and restore stock
@@ -173,4 +199,77 @@ class OrderController extends Controller
             return response()->json(['message' => 'Failed to cancel order.', 'error' => $e->getMessage()], 500);
         }
     }
+    public function aiReorder(Request $request)
+    {
+        $user = $request->user();
+
+        // Get top 3 frequently ordered items
+        $topItems = OrderItem::select('menu_item_id', DB::raw('COUNT(*) as total'))
+            ->whereHas('order', fn ($q) => $q->where('user_id', $user->id)->where('status', 'completed'))
+            ->groupBy('menu_item_id')
+            ->orderByDesc('total')
+            ->take(3)
+            ->pluck('menu_item_id');
+
+        if ($topItems->isEmpty()) {
+            return response()->json(['message' => 'No frequent items found.'], 404);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $order = Order::create([
+                'user_id' => $user->id,
+                'order_code' => 'ORD-' . strtoupper(Str::random(8)),
+                'total_amount' => 0,
+                'status' => 'pending',
+                'payment_method' => null,
+            ]);
+
+            $total = 0;
+
+            foreach ($topItems as $menuItemId) {
+                $menuItem = MenuItem::with('recipes')->find($menuItemId);
+                if (!$menuItem) continue;
+
+                $quantity = 1;
+                $subtotal = $menuItem->price * $quantity;
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'menu_item_id' => $menuItem->id,
+                    'quantity' => $quantity,
+                    'price' => $menuItem->price,
+                    'subtotal' => $subtotal,
+                ]);
+
+                // Deduct stock
+                foreach ($menuItem->recipes as $recipe) {
+                    $requiredQty = $recipe->quantity * $quantity;
+                    $stock = Stock::where('ingredient_id', $recipe->ingredient_id)->first();
+
+                    if (!$stock || $stock->quantity < $requiredQty) {
+                        DB::rollBack();
+                        return response()->json(['message' => 'Insufficient stock for ' . $menuItem->name], 400);
+                    }
+
+                    $stock->quantity -= $requiredQty;
+                    $stock->save();
+                }
+
+                $total += $subtotal;
+            }
+
+            $order->update(['total_amount' => $total]);
+
+            DB::commit();
+            return response()->json($order->load('orderItems.menuItem'));
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'AI reorder failed', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+
 }

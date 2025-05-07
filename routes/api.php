@@ -114,4 +114,5 @@ Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
     Route::get('/{payment}', [PaymentController::class, 'show']);
     Route::post('/{payment}/logs', [PaymentController::class, 'log']);
 });
+Route::post('/orders/ai-reorder', [OrderController::class, 'aiReorder'])->middleware('auth:sanctum');
 
