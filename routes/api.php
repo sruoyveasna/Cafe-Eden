@@ -14,6 +14,7 @@ use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\NotificationController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -116,3 +117,9 @@ Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
 });
 Route::post('/orders/ai-reorder', [OrderController::class, 'aiReorder'])->middleware('auth:sanctum');
 
+Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::post('/', [NotificationController::class, 'store']);
+    Route::put('/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{notification}', [NotificationController::class, 'destroy']);
+});
