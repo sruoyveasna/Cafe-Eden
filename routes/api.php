@@ -16,13 +16,16 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\NotificationController;
 
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+Route::post('/forgot-password', [AuthController::class, 'forgot']);
+Route::post('/reset-password', [AuthController::class, 'reset']);
 
-Route::post('/forgot-password', [AuthController::class, 'sendResetToken']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('users')->group(function () {
     Route::get('/', [UserController::class, 'index']);        // List all users

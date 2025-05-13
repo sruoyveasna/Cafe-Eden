@@ -1,17 +1,17 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    // Register
     // 📝 Register (customer only)
     public function register(Request $request)
     {
@@ -37,99 +37,67 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // 🔐 Login
+    // Login
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|string|email',
+            'password' => 'required|string',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Login successful.',
-            'token' => $token,
-            'user' => $user,
-        ]);
+        return response()->json(['user' => $user, 'token' => $token], 200);
     }
 
-    // 🚪 Logout
+    // Logout
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-
+        $request->user()->tokens()->delete();
         return response()->json(['message' => 'Logged out']);
     }
 
-    // 👤 Current user
-    public function me(Request $request)
-    {
-        return response()->json($request->user());
-    }
-
-    // 📤 Send reset token via email (Mailtrap-ready)
-    public function sendResetToken(Request $request)
+    // Forgot Password - send token to email
+    public function forgot(Request $request)
     {
         $request->validate(['email' => 'required|email']);
 
-        $user = User::where('email', $request->email)->first();
+        $status = Password::sendResetLink($request->only('email'));
 
-        if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
-        }
-
-        $token = Str::random(60);
-
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $user->email],
-            ['token' => $token, 'created_at' => now()]
-        );
-
-        Mail::raw("Your Cafe POS password reset token: $token", function ($message) use ($user) {
-            $message->to($user->email)
-                    ->subject('Cafe POS Password Reset');
-        });
-
-        return response()->json(['message' => 'Reset token sent to email.']);
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json(['message' => 'Reset link sent to email.'])
+            : response()->json(['message' => 'Unable to send reset link.'], 400);
     }
 
-    // 🔁 Reset password using token
-    public function resetPassword(Request $request)
+    // Reset Password
+    public function reset(Request $request)
     {
         $request->validate([
+            'token' => 'required',
             'email' => 'required|email',
-            'token' => 'required|string',
-            'password' => 'required|min:6|confirmed'
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
-        $record = DB::table('password_reset_tokens')
-            ->where('email', $request->email)
-            ->where('token', $request->token)
-            ->first();
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
 
-        if (!$record) {
-            return response()->json(['message' => 'Invalid token or email.'], 400);
-        }
+                event(new PasswordReset($user));
+            }
+        );
 
-        if (now()->diffInMinutes($record->created_at) > 15) {
-            return response()->json(['message' => 'Token expired.'], 410);
-        }
-
-        $user = User::where('email', $request->email)->first();
-        $user->password = Hash::make($request->password);
-        $user->save();
-
-        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
-
-        return response()->json(['message' => 'Password reset successful.']);
+        return $status === Password::PASSWORD_RESET
+            ? response()->json(['message' => 'Password reset successful.'])
+            : response()->json(['message' => __($status)], 400);
     }
 }
