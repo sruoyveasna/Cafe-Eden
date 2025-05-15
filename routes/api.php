@@ -73,6 +73,7 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->group(function ()
         Route::get('/{stock}', [StockController::class, 'show']);
     });
 });
+Route::middleware('auth:sanctum')->get('/orders/export', [OrderController::class, 'export']);
 
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('recipes')->group(function () {
@@ -83,6 +84,7 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('recipes')
 Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
     Route::get('/', [OrderController::class, 'index']);
     Route::get('/{order}', [OrderController::class, 'show']);
+    Route::put('/{order}', [OrderController::class, 'update']);
     Route::post('/', [OrderController::class, 'store']);
     Route::post('/{order}/pay', [OrderController::class, 'pay']);
     Route::post('/{order}/cancel', [OrderController::class, 'cancel']);

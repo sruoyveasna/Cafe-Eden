@@ -10,6 +10,10 @@ use App\Models\Discount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\OrderExport;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrderController extends Controller
 {
@@ -23,6 +27,84 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         return $order->load(['user', 'orderItems.menuItem']);
+    }
+    public function update(Request $request, Order $order)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,completed,cancelled',
+        ]);
+
+        $order->status = $request->status;
+        $order->save();
+
+        return response()->json(['message' => 'Order status updated.']);
+    }
+
+    public function export(Request $request)
+    {
+        $user = $request->user();
+
+        // ✅ Role-based access (Admin only)
+        if (!$user || $user->role->name !== 'Admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $status = $request->status;
+        $from = $request->from;
+        $to = $request->to;
+        $format = $request->query('format', 'csv');
+
+        $orders = Order::with('discount')
+            ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
+            ->when($status && $status !== 'all', fn($q) => $q->where('status', $status))
+            ->get();
+
+        if ($format === 'excel') {
+            return Excel::download(new OrderExport($orders), 'orders.xlsx');
+        }
+
+        if ($format === 'pdf') {
+            $pdf = Pdf::loadView('exports.orders_pdf', ['orders' => $orders]);
+            return $pdf->download('orders.pdf');
+        }
+
+        // Default CSV fallback
+        $csvHeader = [
+            'Order Code',
+            'User ID',
+            'Discount',
+            'Promo Code',
+            'Payment Method',
+            'Total Amount',
+            'Status',
+            'Date'
+        ];
+
+        $callback = function () use ($orders, $csvHeader) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $csvHeader);
+
+            foreach ($orders as $order) {
+                fputcsv($file, [
+                    $order->order_code,
+                    $order->user_id,
+                    number_format($order->discount_amount, 2),
+                    $order->discount?->code ?? '-',
+                    ucfirst($order->payment_method ?? '-'),
+                    number_format($order->total_amount, 2),
+                    ucfirst($order->status),
+                    $order->created_at->format('d/m/Y'),
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            "Content-Type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=order_report.csv",
+        ]);
     }
 
     // 🧾 Place a new order with optional discount
