@@ -42,4 +42,24 @@ class DiscountController extends Controller
         $discount->delete();
         return response()->json(['message' => 'Discount deleted.']);
     }
+    public function validateCode(Request $request)
+    {
+        $code = strtoupper($request->query('code'));
+
+        $discount = Discount::where('code', $code)
+            ->where('active', true)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>=', now());
+            })
+            ->first();
+
+        if (!$discount) {
+            return response()->json(['message' => 'Invalid or expired code'], 404);
+        }
+
+        return response()->json([
+            'type' => $discount->percentage ? 'percent' : 'fixed',
+            'value' => $discount->percentage ?? $discount->amount,
+        ]);
+    }
 }

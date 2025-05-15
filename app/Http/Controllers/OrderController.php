@@ -114,32 +114,12 @@ class OrderController extends Controller
 
             DB::commit();
             return response()->json($order->load('orderItems.menuItem'), 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Order failed', 'error' => $e->getMessage()], 500);
         }
     }
 
-    // 💳 Mark an order as paid
-    // public function pay(Request $request, Order $order)
-    // {
-    //     $request->validate([
-    //         'payment_method' => 'required|in:cash,aba,bakong'
-    //     ]);
-
-    //     if ($order->status !== 'pending') {
-    //         return response()->json(['message' => 'Only pending orders can be paid.'], 400);
-    //     }
-
-    //     $order->update([
-    //         'payment_method' => $request->payment_method,
-    //         'status' => 'completed',
-    //         'paid_at' => now(),
-    //     ]);
-
-    //     return response()->json(['message' => 'Order marked as paid.']);
-    // }
     public function pay(Request $request, Order $order)
     {
         $request->validate([
@@ -167,7 +147,6 @@ class OrderController extends Controller
         return response()->json(['message' => 'Order marked as paid and points awarded.']);
     }
 
-    // ❌ Cancel an order and restore stock
     public function cancel(Order $order)
     {
         if ($order->status !== 'pending') {
@@ -193,19 +172,18 @@ class OrderController extends Controller
 
             DB::commit();
             return response()->json(['message' => 'Order cancelled and stock restored.']);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to cancel order.', 'error' => $e->getMessage()], 500);
         }
     }
+
     public function aiReorder(Request $request)
     {
         $user = $request->user();
 
-        // Get top 3 frequently ordered items
         $topItems = OrderItem::select('menu_item_id', DB::raw('COUNT(*) as total'))
-            ->whereHas('order', fn ($q) => $q->where('user_id', $user->id)->where('status', 'completed'))
+            ->whereHas('order', fn($q) => $q->where('user_id', $user->id)->where('status', 'completed'))
             ->groupBy('menu_item_id')
             ->orderByDesc('total')
             ->take(3)
@@ -243,7 +221,6 @@ class OrderController extends Controller
                     'subtotal' => $subtotal,
                 ]);
 
-                // Deduct stock
                 foreach ($menuItem->recipes as $recipe) {
                     $requiredQty = $recipe->quantity * $quantity;
                     $stock = Stock::where('ingredient_id', $recipe->ingredient_id)->first();
@@ -264,12 +241,9 @@ class OrderController extends Controller
 
             DB::commit();
             return response()->json($order->load('orderItems.menuItem'));
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'AI reorder failed', 'error' => $e->getMessage()], 500);
         }
     }
-
-
 }

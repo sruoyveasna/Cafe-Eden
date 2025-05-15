@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
@@ -102,15 +103,15 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('reports')
     Route::get('/stats', [ReportController::class, 'stats']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::prefix('discounts')->group(function () {
-        Route::get('/', [DiscountController::class, 'index']);
-        Route::post('/', [DiscountController::class, 'store']);
-        Route::get('/{discount}', [DiscountController::class, 'show']);
-        Route::put('/{discount}', [DiscountController::class, 'update']);
-        Route::delete('/{discount}', [DiscountController::class, 'destroy']);
-    });
+Route::middleware('auth:sanctum')->prefix('discounts')->group(function () {
+    Route::get('/validate', [DiscountController::class, 'validateCode']);
+    Route::get('/', [DiscountController::class, 'index']);
+    Route::post('/', [DiscountController::class, 'store']);
+    Route::get('/{discount}', [DiscountController::class, 'show']);
+    Route::put('/{discount}', [DiscountController::class, 'update']);
+    Route::delete('/{discount}', [DiscountController::class, 'destroy']);
 });
+
 
 Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
     Route::get('/', [PaymentController::class, 'index']);
