@@ -18,13 +18,18 @@ class MenuItemController extends Controller
             'name' => 'required|string',
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric|min:0',
-            'image' => 'nullable|string',
+            'image' => 'nullable|image|max:2048',
             'description' => 'nullable|string',
         ]);
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('menu', 'public');
+        }
 
         $item = MenuItem::create($data);
         return response()->json($item, 201);
     }
+
 
     public function show(MenuItem $menuItem)
     {
@@ -37,9 +42,15 @@ class MenuItemController extends Controller
             'name' => 'sometimes|string',
             'category_id' => 'sometimes|exists:categories,id',
             'price' => 'sometimes|numeric|min:0',
-            'image' => 'nullable|string',
+            'image' => 'nullable|image|max:2048',
             'description' => 'nullable|string',
         ]);
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $path = $image->store('menu', 'public'); // => storage/app/public/menu/xxx.jpg
+            $data['image'] = $path; // Save as: "menu/filename.jpg"
+        }
 
         $menuItem->update($data);
         return response()->json(['message' => 'Updated', 'menu_item' => $menuItem]);
@@ -72,5 +83,4 @@ class MenuItemController extends Controller
 
         return $query->get();
     }
-
 }
