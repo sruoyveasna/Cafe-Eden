@@ -28,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
+
+
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('users')->group(function () {
     Route::get('/', [UserController::class, 'index']);        // List all users
     Route::post('/', [UserController::class, 'store']);        // Create new user
@@ -89,6 +91,8 @@ Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
     Route::post('/', [OrderController::class, 'store']);
     Route::post('/{order}/pay', [OrderController::class, 'pay']);
     Route::post('/{order}/cancel', [OrderController::class, 'cancel']);
+    Route::put('/{order}', [OrderController::class, 'update']);
+
 });
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('order-items')->group(function () {
@@ -101,6 +105,7 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('reports')
     Route::get('/summary', [ReportController::class, 'summary']);
     Route::get('/top-items', [ReportController::class, 'topItems']);
     Route::get('/stats', [ReportController::class, 'stats']);
+
 });
 
 Route::middleware('auth:sanctum')->prefix('discounts')->group(function () {
@@ -111,6 +116,7 @@ Route::middleware('auth:sanctum')->prefix('discounts')->group(function () {
     Route::put('/{discount}', [DiscountController::class, 'update']);
     Route::delete('/{discount}', [DiscountController::class, 'destroy']);
 });
+Route::middleware('auth:sanctum')->get('/orders/export', [OrderController::class, 'export']);
 
 
 Route::middleware('auth:sanctum')->prefix('payments')->group(function () {

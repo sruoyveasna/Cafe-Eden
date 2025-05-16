@@ -10,6 +10,7 @@ use App\Models\Discount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrderController extends Controller
 {
@@ -24,6 +25,20 @@ class OrderController extends Controller
     {
         return $order->load(['user', 'orderItems.menuItem']);
     }
+
+    // ✅ Update order status
+public function update(Request $request, Order $order)
+{
+    $request->validate([
+        'status' => 'required|in:pending,completed,cancelled',
+    ]);
+
+    $order->status = $request->status;
+    $order->save();
+
+    return response()->json(['message' => 'Order status updated.']);
+}
+
 
     // 🧾 Place a new order with optional discount
     public function store(Request $request)
@@ -118,6 +133,45 @@ class OrderController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Order failed', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    public function export(Request $request)
+    {
+        $orders = Order::with(['discount'])
+            ->when($request->from, fn($q) => $q->whereDate('created_at', '>=', $request->from))
+            ->when($request->to, fn($q) => $q->whereDate('created_at', '<=', $request->to))
+            ->when($request->status && $request->status !== 'all', fn($q) => $q->where('status', $request->status))
+            ->get();
+
+        $csvHeader = [
+            'Order Code', 'User ID', 'Discount', 'Promo Code',
+            'Payment Method', 'Total Amount', 'Status', 'Date'
+        ];
+
+        $callback = function () use ($orders, $csvHeader) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $csvHeader);
+
+            foreach ($orders as $order) {
+                fputcsv($file, [
+                    $order->order_code,
+                    $order->user_id,
+                    number_format($order->discount_amount, 2),
+                    $order->discount?->code ?? '-',
+                    ucfirst($order->payment_method ?? '-'),
+                    number_format($order->total_amount, 2),
+                    ucfirst($order->status),
+                    $order->created_at->format('d/m/Y'),
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            "Content-Type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=order_report.csv",
+        ]);
     }
 
     public function pay(Request $request, Order $order)
