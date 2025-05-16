@@ -21,17 +21,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgot']);
 Route::post('/reset-password', [AuthController::class, 'reset']);
-
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-});
-
-Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('users')->group(function () {
-    Route::get('/', [UserController::class, 'index']);           // List all users
-    Route::get('/{user}', [UserController::class, 'show']);      // ✅ Get user by ID
-    Route::post('/', [UserController::class, 'store']);          // Create user
-    Route::put('/{user}', [UserController::class, 'update']);    // Update user
-    Route::delete('/{user}', [UserController::class, 'destroy']); // Delete user
 });
 // 🔐 Authenticated users can manage their own info
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -40,6 +31,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/me', [UserController::class, 'deleteMe']);  // Delete own account
 });
 
+
+Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index']);        // List all users
+        Route::get('/', [UserController::class, 'index']);           // List all users
+    Route::get('/{user}', [UserController::class, 'show']);      // ✅ Get user by ID
+    Route::post('/', [UserController::class, 'store']);          // Create user
+    Route::put('/{user}', [UserController::class, 'update']);    // Update user
+    Route::delete('/{user}', [UserController::class, 'destroy']); // Delete user
+});
 Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::put('/', [ProfileController::class, 'update']);
@@ -65,13 +65,6 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('menu-item
 Route::get('/menu-items/search', [MenuItemController::class, 'search']);
 Route::middleware('auth:sanctum')->get('/menu-items/{id}/availability', [MenuItemAvailabilityController::class, 'check']);
 
-Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('ingredients')->group(function () {
-    Route::get('/', [IngredientController::class, 'index']);
-    Route::post('/', [IngredientController::class, 'store']);
-    Route::get('/{ingredient}', [IngredientController::class, 'show']);
-    Route::put('/{ingredient}', [IngredientController::class, 'update']);
-    Route::delete('/{ingredient}', [IngredientController::class, 'destroy']);
-});
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->group(function () {
     Route::apiResource('ingredients', IngredientController::class);
