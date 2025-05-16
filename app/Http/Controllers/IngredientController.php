@@ -28,7 +28,6 @@ class IngredientController extends Controller
     {
         return $ingredient;
     }
-
     public function update(Request $request, Ingredient $ingredient)
     {
         $validated = $request->validate([

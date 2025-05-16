@@ -26,13 +26,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
-
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('users')->group(function () {
-    Route::get('/', [UserController::class, 'index']);        // List all users
-    Route::post('/', [UserController::class, 'store']);        // Create new user
-    Route::put('/{user}', [UserController::class, 'update']);  // Update user
+    Route::get('/', [UserController::class, 'index']);           // List all users
+    Route::get('/{user}', [UserController::class, 'show']);      // ✅ Get user by ID
+    Route::post('/', [UserController::class, 'store']);          // Create user
+    Route::put('/{user}', [UserController::class, 'update']);    // Update user
     Route::delete('/{user}', [UserController::class, 'destroy']); // Delete user
 });
+// 🔐 Authenticated users can manage their own info
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/me', [UserController::class, 'me']);           // Get own info
+    Route::put('/me', [UserController::class, 'updateMe']);     // Update own info
+    Route::delete('/me', [UserController::class, 'deleteMe']);  // Delete own account
+});
+
 Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::put('/', [ProfileController::class, 'update']);
