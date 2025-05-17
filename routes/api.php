@@ -101,6 +101,8 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->get('/dashboard-o
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('reports')->group(function () {
     Route::get('/summary', [ReportController::class, 'summary']);
+    Route::get('/monthly-revenue', [ReportController::class, 'monthlyRevenue']);
+    Route::get('/revenue', [ReportController::class, 'revenueByFilter']);
     Route::get('/top-items', [ReportController::class, 'topItems']);
     Route::get('/stats', [ReportController::class, 'stats']);
 });
