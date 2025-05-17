@@ -15,6 +15,7 @@ use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -95,6 +96,8 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('order-ite
     Route::get('/{orderItem}', [OrderItemController::class, 'show']);
     Route::delete('/{orderItem}', [OrderItemController::class, 'destroy']);
 });
+
+Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->get('/dashboard-overview', [DashboardController::class, 'overview']);
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('reports')->group(function () {
     Route::get('/summary', [ReportController::class, 'summary']);
