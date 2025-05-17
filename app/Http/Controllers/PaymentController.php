@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Order;
@@ -6,6 +7,8 @@ use App\Models\Payment;
 use App\Models\PaymentLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+
 
 class PaymentController extends Controller
 {
@@ -24,6 +27,8 @@ class PaymentController extends Controller
     // 💰 Store a new payment (manual input or from frontend)
     public function store(Request $request)
     {
+        Log::info('📥 Incoming Payment Request', $request->all());
+
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,id',
             'method' => 'required|in:cash,static_qr,khqr,aba,card',
@@ -32,39 +37,51 @@ class PaymentController extends Controller
             'note' => 'nullable|string'
         ]);
 
-        $order = Order::findOrFail($validated['order_id']);
+        try {
+            $order = Order::findOrFail($validated['order_id']);
 
-        if ($order->status === 'paid') {
-            return response()->json(['message' => 'Order already paid'], 400);
-        }
+            if ($order->status === 'paid' || $order->status === 'completed') {
+                Log::warning("🛑 Order {$order->id} already paid or completed.");
+                return response()->json(['message' => 'Order already paid'], 400);
+            }
 
-        $payment = Payment::create([
-            'order_id' => $order->id,
-            'method' => $validated['method'],
-            'amount' => $validated['amount'],
-            'transaction_id' => $validated['transaction_id'] ?? Str::uuid(),
-            'status' => 'approved',
-            'confirmed_at' => now()
-        ]);
-
-        // Optional: add log for traceability
-        if ($validated['note']) {
-            PaymentLog::create([
-                'payment_id' => $payment->id,
-                'raw_data' => $validated['note'],
-                'source' => 'manual'
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'method' => $validated['method'],
+                'amount' => $validated['amount'],
+                'transaction_id' => $validated['transaction_id'] ?? Str::uuid(),
+                'status' => 'approved',
+                'confirmed_at' => now()
             ]);
+
+            Log::info('✅ Payment saved', $payment->toArray());
+
+            if (!empty($validated['note'])) {
+                PaymentLog::create([
+                    'payment_id' => $payment->id,
+                    'raw_data' => $validated['note'],
+                    'source' => 'manual'
+                ]);
+            }
+
+            $order->update([
+                'status' => 'completed',
+                'payment_method' => $validated['method'],
+                'paid_at' => now()
+            ]);
+
+            Log::info("🟢 Order {$order->id} updated to completed.");
+
+            return response()->json(['message' => 'Payment recorded', 'payment' => $payment], 201);
+        } catch (\Throwable $e) {
+            Log::error('❌ Payment processing failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['message' => 'Payment failed', 'error' => $e->getMessage()], 500);
         }
-
-        // Update order status
-        $order->update([
-            'status' => 'paid',
-            'payment_method' => $validated['method'],
-            'paid_at' => now()
-        ]);
-
-        return response()->json(['message' => 'Payment recorded', 'payment' => $payment], 201);
     }
+
 
     // ✍️ Log extra info for payment
     public function log(Request $request, Payment $payment)
