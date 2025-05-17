@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Models\MenuItem;
 
 class ReportController extends Controller
 {
@@ -25,14 +26,14 @@ class ReportController extends Controller
     // 📈 Top 5 best-selling items (all time)
     public function topItems()
     {
-        $top = OrderItem::select('menu_item_id', DB::raw('SUM(quantity) as total_sold'))
-            ->groupBy('menu_item_id')
-            ->with('menuItem')
-            ->orderByDesc('total_sold')
-            ->take(5)
+        $topItems = MenuItem::select('menu_items.name', DB::raw('SUM(order_items.quantity) as total_orders'))
+            ->join('order_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->groupBy('menu_items.name')
+            ->orderByDesc('total_orders')
+            ->limit(10)
             ->get();
 
-        return response()->json($top);
+        return response()->json($topItems);
     }
 
     // 📊 Weekly and monthly stats
