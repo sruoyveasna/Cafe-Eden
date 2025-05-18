@@ -17,6 +17,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Models\Role;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -130,4 +131,8 @@ Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
     Route::post('/', [NotificationController::class, 'store']);
     Route::put('/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::delete('/{notification}', [NotificationController::class, 'destroy']);
+});
+
+Route::middleware('auth:sanctum')->get('/roles', function () {
+    return Role::all();
 });
