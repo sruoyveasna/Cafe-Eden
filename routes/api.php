@@ -136,3 +136,4 @@ Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
 Route::middleware('auth:sanctum')->get('/roles', function () {
     return Role::all();
 });
+Route::middleware('auth:sanctum')->post('/change-password', [ProfileController::class, 'changePassword']);
