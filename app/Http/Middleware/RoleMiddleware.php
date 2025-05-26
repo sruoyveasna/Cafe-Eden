@@ -22,7 +22,7 @@ class RoleMiddleware
         $user = $request->user();
 
         if (! $user || ! in_array($user->role->name, $roles)) {
-            return response()->json(['message' => 'Forbidden — insufficient role'], 403);
+            return response()->json(['message' => 'ហែងគិតថាហែងអីគេចង់មើលDataគេនឹង'], 403);
         }
 
         return $next($request);

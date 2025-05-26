@@ -19,18 +19,28 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Models\Role;
 
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+Route::post('/forgot-password', [AuthController::class, 'forgot']);
+Route::post('/reset-password', [AuthController::class, 'reset']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+// 🔐 Authenticated users can manage their own info
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/me', [UserController::class, 'me']);           // Get own info
+    Route::put('/me', [UserController::class, 'updateMe']);     // Update own info
+    Route::delete('/me', [UserController::class, 'deleteMe']);  // Delete own account
+});
 
-Route::post('/forgot-password', [AuthController::class, 'sendResetToken']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('users')->group(function () {
     Route::get('/', [UserController::class, 'index']);        // List all users
-    Route::post('/', [UserController::class, 'store']);        // Create new user
-    Route::put('/{user}', [UserController::class, 'update']);  // Update user
+        Route::get('/', [UserController::class, 'index']);           // List all users
+    Route::get('/{user}', [UserController::class, 'show']);      // ✅ Get user by ID
+    Route::post('/', [UserController::class, 'store']);          // Create user
+    Route::put('/{user}', [UserController::class, 'update']);    // Update user
     Route::delete('/{user}', [UserController::class, 'destroy']); // Delete user
 });
 Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
@@ -58,13 +68,6 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('menu-item
 Route::get('/menu-items/search', [MenuItemController::class, 'search']);
 Route::middleware('auth:sanctum')->get('/menu-items/{id}/availability', [MenuItemAvailabilityController::class, 'check']);
 
-Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->prefix('ingredients')->group(function () {
-    Route::get('/', [IngredientController::class, 'index']);
-    Route::post('/', [IngredientController::class, 'store']);
-    Route::get('/{ingredient}', [IngredientController::class, 'show']);
-    Route::put('/{ingredient}', [IngredientController::class, 'update']);
-    Route::delete('/{ingredient}', [IngredientController::class, 'destroy']);
-});
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Admin'])->group(function () {
     Route::apiResource('ingredients', IngredientController::class);

@@ -3,17 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Stock;
-use App\Models\Ingredient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class StockController extends Controller
 {
+    // 📦 Get all stock items with related ingredient info
     public function index()
     {
         return Stock::with('ingredient')->get();
     }
 
-    // Accepts either one item or many items
+    // 📥 Create or update stock (single or batch)
     public function store(Request $request)
     {
         if ($request->has('items')) {
@@ -56,8 +57,34 @@ class StockController extends Controller
         }
     }
 
+    // 👁 View a specific stock entry
     public function show(Stock $stock)
     {
-        return $stock->load('ingredient');
+        return response()->json($stock->load('ingredient'));
+    }
+
+    // ✏️ Update a specific stock entry by ID
+    public function update(Request $request, Stock $stock)
+    {
+        $data = $request->validate([
+            'quantity' => 'required|numeric|min:0',
+        ]);
+
+        $stock->update($data);
+
+        return response()->json([
+            'message' => 'Stock updated successfully.',
+            'stock' => $stock->load('ingredient')
+        ]);
+    }
+
+    // ❌ Delete a specific stock entry by ID
+    public function destroy(Stock $stock)
+    {
+        $stock->delete();
+
+        return response()->json([
+            'message' => 'Stock deleted successfully.'
+        ]);
     }
 }

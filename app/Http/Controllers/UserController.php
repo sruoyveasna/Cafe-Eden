@@ -8,13 +8,16 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    // 🧾 List all users with roles (Admin-only)
     public function index()
     {
         return User::with('role')->get();
     }
 
-    // ➕ Create a new user (by admin)
+    public function show(User $user)
+    {
+        return response()->json($user->load('role'));
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -31,7 +34,6 @@ class UserController extends Controller
         return response()->json($user, 201);
     }
 
-    // ✏️ Update user details
     public function update(Request $request, User $user)
     {
         $data = $request->validate([
@@ -45,10 +47,44 @@ class UserController extends Controller
         return response()->json(['message' => 'User updated', 'user' => $user]);
     }
 
-    // ❌ Delete user
     public function destroy(User $user)
     {
         $user->delete();
         return response()->json(['message' => 'User deleted']);
     }
+    // 👤 Get current user's profile
+public function me(Request $request)
+{
+    return response()->json($request->user()->load('role'));
+}
+
+// ✏️ Update own profile
+public function updateMe(Request $request)
+{
+    $user = $request->user();
+
+    $data = $request->validate([
+        'name' => 'nullable|string',
+        'email' => 'nullable|email|unique:users,email,' . $user->id,
+        'password' => 'nullable|string|min:6|confirmed',
+    ]);
+
+    if (isset($data['password'])) {
+        $data['password'] = Hash::make($data['password']);
+    }
+
+    $user->update($data);
+
+    return response()->json(['message' => 'Profile updated', 'user' => $user]);
+}
+
+// ❌ Delete own account
+public function deleteMe(Request $request)
+{
+    $user = $request->user();
+    $user->delete();
+
+    return response()->json(['message' => 'Account deleted']);
+}
+
 }
