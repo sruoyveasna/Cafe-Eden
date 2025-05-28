@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Optional: Register custom middleware aliases
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'check.user' => \App\Http\Middleware\CheckUserExists::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
