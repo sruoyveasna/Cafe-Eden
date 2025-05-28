@@ -17,6 +17,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ABAController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -142,10 +143,11 @@ Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
     Route::delete('/{notification}', [NotificationController::class, 'destroy']);
 });
 
-
-use Illuminate\Http\Request;
-
-Route::get('/ping', function () {
-    return response()->json(['message' => 'pong']);
+// Middleware to check if user exists
+Route::middleware(['auth:sanctum', 'check.user'])->prefix('profile')->group(function () {
+    Route::get('/', [ProfileController::class, 'show']);
+    Route::put('/', [ProfileController::class, 'update']);
+    Route::post('/avatar', [ProfileController::class, 'updateAvatar']);
 });
+
 

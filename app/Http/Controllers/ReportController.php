@@ -24,7 +24,7 @@ class ReportController extends Controller
         ]);
     }
 
-    // 📈 Top 5 best-selling items (all time)
+    // 📈 Top 10 best-selling items (all time)
     public function topItems()
     {
         $topItems = MenuItem::select('menu_items.name', DB::raw('SUM(order_items.quantity) as total_orders'))
@@ -37,16 +37,16 @@ class ReportController extends Controller
         return response()->json($topItems);
     }
 
-    // 📊 Weekly and monthly stats
+    // 📊 Weekly and monthly stats (recent)
     public function stats()
     {
-        $weekly = Order::selectRaw('DATE(created_at) as date, SUM(total_amount) as revenue')
+        $weekly = Order::selectRaw('DATE(CONVERT_TZ(created_at, "+00:00", "+07:00")) as date, SUM(total_amount) as revenue')
             ->where('created_at', '>=', now()->subDays(7))
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
-        $monthly = Order::selectRaw('MONTH(created_at) as month, SUM(total_amount) as revenue')
+        $monthly = Order::selectRaw('MONTH(CONVERT_TZ(created_at, "+00:00", "+07:00")) as month, SUM(total_amount) as revenue')
             ->where('created_at', '>=', now()->subMonths(6))
             ->groupBy('month')
             ->orderBy('month')
@@ -58,11 +58,11 @@ class ReportController extends Controller
         ]);
     }
 
-    // 📆 Monthly revenue for bar chart
+    // 📆 Monthly revenue bar chart
     public function monthlyRevenue()
     {
         $revenues = DB::table('orders')
-            ->selectRaw("DATE_FORMAT(created_at, '%b') as month, SUM(total_amount) as revenue")
+            ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+07:00'), '%b') as month, SUM(total_amount) as revenue")
             ->whereYear('created_at', now()->year)
             ->groupBy('month')
             ->orderByRaw("STR_TO_DATE(month, '%b')")
@@ -84,41 +84,84 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    // 🧠 Revenue with filter: today, week, month, year
+    // 🧠 Revenue based on filter: today, week, month, year
     public function revenueByFilter(Request $request)
     {
         $filter = $request->query('filter', 'month');
-        $query = Order::query();
 
         switch ($filter) {
             case 'today':
-                $query->whereDate('created_at', now());
-                $format = '%H:00'; // hourly
+                $raw = Order::whereDate('created_at', now())
+                    ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+07:00'), '%H:00') as label, SUM(total_amount) as revenue")
+                    ->groupBy('label')
+                    ->get()
+                    ->keyBy('label');
+
+                $data = collect(range(0, 23))->map(function ($hour) use ($raw) {
+                    $label = str_pad($hour, 2, '0', STR_PAD_LEFT) . ':00';
+                    return [
+                        'label' => $label,
+                        'revenue' => $raw[$label]->revenue ?? 0,
+                    ];
+                });
                 break;
 
             case 'week':
-                $query->where('created_at', '>=', now()->startOfWeek());
-                $format = '%a'; // Mon, Tue...
+                $raw = Order::where('created_at', '>=', now()->startOfWeek())
+                    ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+07:00'), '%a') as label, SUM(total_amount) as revenue")
+                    ->groupBy('label')
+                    ->get();
+
+                $weekdays = collect(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+                $data = $weekdays->map(function ($day) use ($raw) {
+                    $match = $raw->firstWhere('label', $day);
+                    return [
+                        'label' => $day,
+                        'revenue' => $match ? (float) $match->revenue : 0,
+                    ];
+                });
                 break;
 
             case 'month':
-                $query->whereMonth('created_at', now()->month);
-                $format = '%d'; // day of month
+                $raw = Order::whereMonth('created_at', now()->month)
+                    ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+07:00'), '%d') as label, SUM(total_amount) as revenue")
+                    ->groupBy('label')
+                    ->get();
+
+                $daysInMonth = now()->daysInMonth;
+                $data = collect(range(1, $daysInMonth))->map(function ($day) use ($raw) {
+                    $label = str_pad($day, 2, '0', STR_PAD_LEFT);
+                    $match = $raw->firstWhere('label', $label);
+                    return [
+                        'label' => $label,
+                        'revenue' => $match ? (float) $match->revenue : 0,
+                    ];
+                });
                 break;
 
             case 'year':
-                $query->whereYear('created_at', now()->year);
-                $format = '%b'; // Jan, Feb...
+                $raw = Order::whereYear('created_at', now()->year)
+                    ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+07:00'), '%b') as label, SUM(total_amount) as revenue")
+                    ->groupBy('label')
+                    ->get();
+
+                $months = collect([
+                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ]);
+
+                $data = $months->map(function ($month) use ($raw) {
+                    $match = $raw->firstWhere('label', $month);
+                    return [
+                        'label' => $month,
+                        'revenue' => $match ? (float) $match->revenue : 0,
+                    ];
+                });
                 break;
 
             default:
                 return response()->json(['error' => 'Invalid filter'], 400);
         }
-
-        $data = $query->selectRaw("DATE_FORMAT(created_at, '{$format}') as label, SUM(total_amount) as revenue")
-            ->groupBy('label')
-            ->orderByRaw("MIN(created_at)")
-            ->get();
 
         return response()->json($data);
     }
