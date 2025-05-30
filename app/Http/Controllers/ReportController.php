@@ -88,7 +88,6 @@ class ReportController extends Controller
     public function revenueByFilter(Request $request)
     {
         $filter = $request->query('filter', 'month');
-
         switch ($filter) {
             case 'today':
                 $raw = Order::whereDate('created_at', now())
@@ -141,7 +140,7 @@ class ReportController extends Controller
 
             case 'year':
                 $raw = Order::whereYear('created_at', now()->year)
-                    ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+07:00'), '%b') as label, SUM(total_amount) as revenue")
+                    ->selectRaw("DATE_FORMAT(CONVERT_TZ(created_at,'+00:00','+07:00'), '%b') as label, SUM(total_amount) as revenue")
                     ->groupBy('label')
                     ->get();
 
