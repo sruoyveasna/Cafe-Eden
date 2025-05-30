@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MenuItem;
 use Illuminate\Http\Request;
 
+
 class MenuItemController extends Controller
 {
     public function index()
@@ -36,25 +37,54 @@ class MenuItemController extends Controller
         return $menuItem->load('category');
     }
 
+    // public function update(Request $request, MenuItem $menuItem)
+    // {
+    //     $data = $request->validate([
+    //         'name' => 'sometimes|string',
+    //         'category_id' => 'sometimes|exists:categories,id',
+    //         'price' => 'sometimes|numeric|min:0',
+    //         'image' => 'nullable|image|max:2048',
+    //         'description' => 'nullable|string',
+    //     ]);
+
+    //     if ($request->hasFile('image')) {
+    //         $image = $request->file('image');
+    //         $path = $image->store('menu', 'public'); // => storage/app/public/menu/xxx.jpg
+    //         $data['image'] = $path; // Save as: "menu/filename.jpg"
+    //     }
+
+    //     $menuItem->update($data);
+    //     return response()->json(['message' => 'Updated', 'menu_item' => $menuItem]);
+    // }
     public function update(Request $request, MenuItem $menuItem)
     {
-        $data = $request->validate([
-            'name' => 'sometimes|string',
-            'category_id' => 'sometimes|exists:categories,id',
-            'price' => 'sometimes|numeric|min:0',
-            'image' => 'nullable|image|max:2048',
-            'description' => 'nullable|string',
-        ]);
+    $data = $request->validate([
+        'name' => 'sometimes|string',
+        'category_id' => 'sometimes|exists:categories,id',
+        'price' => 'sometimes|numeric|min:0',
+        'image' => 'nullable|image|max:2048',
+        'description' => 'nullable|string',
+    ]);
 
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $path = $image->store('menu', 'public'); // => storage/app/public/menu/xxx.jpg
-            $data['image'] = $path; // Save as: "menu/filename.jpg"
+    if ($request->hasFile('image')) {
+        // Delete old image if it exists
+        if ($menuItem->image && \Storage::disk('public')->exists($menuItem->image)) {
+            \Storage::disk('public')->delete($menuItem->image);
         }
 
-        $menuItem->update($data);
-        return response()->json(['message' => 'Updated', 'menu_item' => $menuItem]);
+        // Store new image
+        $image = $request->file('image');
+        $path = $image->store('menu', 'public');
+        $data['image'] = $path;
     }
+
+    $menuItem->update($data);
+    return response()->json([
+        'message' => 'Updated',
+        'menu_item' => $menuItem
+    ]);
+}
+
 
     public function destroy(MenuItem $menuItem)
     {
