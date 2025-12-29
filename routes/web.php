@@ -9,6 +9,11 @@ use App\Services\TelegramService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 
+Route::view('/login', 'auth.login')->name('login');
+Route::view('/dashboard', 'dashboard.index')->name('dashboard');
+// … your other pages (categories, orders, etc.)
+Route::get('/', fn() => redirect()->route('dashboard'));
+
 Route::get('/test-telegram', function () {
     TelegramService::send("✅ Telegram bot connected and working!");
     return 'Sent!';

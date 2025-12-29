@@ -12,7 +12,6 @@ use App\Http\Controllers\IngredientController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\PaymentController;
@@ -97,13 +96,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{order}/cancel',  [OrderController::class, 'cancel']);
         Route::post('/ai-reorder',      [OrderController::class, 'aiReorder']);
         Route::post('/{order}/pay-cash',[OrderController::class, 'payCash']);
-    });
-
-    // Order items
-    Route::prefix('order-items')->group(function () {
-        Route::post('/',             [OrderItemController::class, 'store']);
-        Route::put('/{orderItem}',   [OrderItemController::class, 'update']);
-        Route::delete('/{orderItem}',[OrderItemController::class, 'destroy']);
     });
 
     // Categories — read for all, write for staff
